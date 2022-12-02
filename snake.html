@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Snake Game</title>
+    <link rel="stylesheet" href="https://unpkg.com/open-props/normalize.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/open-props/colors.min.css" />
+    <style>
+      #field {
+        margin: 5vmax;
+        position: fixed;
+        border: solid var(--gray-0);
+        width: 480px;
+        height: 480px;
+      }
+      h4 {
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <main id="field" tabindex="-1">
+      <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 12 12">
+        <circle id="food" r="0.5" fill="var(--red-5)"></circle>
+        <polyline id="snake" stroke-linecap="round" points="2,2 2,4 4,4" fill="none" stroke="var(--teal-6)"></polyline>
+      </svg>
+      <h4 id="status"></h4>
+      <h4>Controls: W,A,S,D or arrows</h4>
+    </main>
+
+    <!-- prettier-ignore -->
+    <script type="module">
+        import { signal, effect } from "./reactivity.js";
+
+        let i = -1
+        const iota = (reset) => reset ? (i = 0) : ++i
+
+        const UP    = iota()
+        const RIGHT = iota()
+        const DOWN  = iota()
+        const LEFT  = iota()
+
+        const Status = document.getElementById('status')
+        const Snake = document.getElementById('snake')
+        const Food = document.getElementById('food')
+
+        const direction = signal(RIGHT)
+        const points    = signal("4,1 3,1 2,1 1,1");
+        const pause     = signal(true)
+        const food      = signal(makeFood())
+
+        effect(() => {
+            const [x,y] = food().split(',')
+            Food.setAttribute('cx', x)
+            Food.setAttribute('cy', y)
+        })
+
+        effect(() => {
+            Snake.setAttribute("points", points());
+        });
+
+        effect(() => {
+            if (pause()) {
+                Status.textContent = 'PAUSE (Press P or Space to unpause)'
+            } else {
+                Status.textContent = ''
+                var interval = setInterval(() => {
+                    points(updatePoints)
+                }, 500);
+            }
+
+            return clearInterval.bind(window, interval)
+        })
+
+        window.addEventListener("keydown", (event) => {
+            if (event.key == 'p' || event.key == ' ') {
+                pause(p => !p)
+            }
+            if (pause()) {
+                return
+            }
+
+            switch (event.key) {
+            case 'ArrowUp':
+            case 'w': direction() != DOWN  && direction(UP); break;
+            case 'ArrowRight':
+            case 'd': direction() != LEFT  && direction(RIGHT); break;
+            case 'ArrowDown':
+            case 's': direction() != UP    && direction(DOWN); break;
+            case 'ArrowLeft':
+            case 'a': direction() != RIGHT && direction(LEFT); break;
+            }
+        });
+
+        function makeFood() {
+            let x = Math.floor(Math.random() * 12)
+            let y = Math.floor(Math.random() * 12)
+            let point = `${x},${y}`
+            if (points().includes(point)) {
+                point = makeFood()
+            }
+            return point
+        }
+
+        function updatePoints(current) {
+            const move = [
+                (_, x, y) => `${x},${+y - 1}`,
+                (_, x, y) => `${1 + +x},${y}`,
+                (_, x, y) => `${x},${1 + +y}`,
+                (_, x, y) => `${+x - 1},${y}`,
+            ]
+            const snake = current.split(' ')
+            const next = snake[0].replace(/(\d+),(\d+)/, move[direction()])
+            let tailEnd = -1
+            if (next === food()) {
+                food(makeFood())
+                tailEnd = snake.length
+            }
+            return [next, ...snake.slice(0, tailEnd)].join(' ')
+        }
+    </script>
+  </body>
+</html>
